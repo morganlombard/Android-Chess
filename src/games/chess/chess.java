@@ -11,8 +11,8 @@ public class chess extends Activity {
 	// TYPES AND CLASSES
 	private enum pieceType{pawn, bishop, knight, rook, queen, king};
 	private enum objectColour{black, white};
-	private enum pieceState{alive, dead, tentativelyDead};
-	private enum gameState{allClear, whiteCheck, whiteMate, blackCheck, blackMate};
+	private enum pieceState{alive, dead};
+	private enum gameState{allClear, whiteCheck, whiteMate, blackCheck, blackMate, stalemate};
 
 	private class user
 	{
@@ -81,7 +81,12 @@ public class chess extends Activity {
 		abstract protected boolean move(cell moveTo);
 		
 		// gets a list of moves that don't go off the board or cause friendly fire
-		abstract public List<cell> getAvailableMoves();
+		private availableMoves availMoves;
+		public ArrayList<cell> getAvailableMoves()
+		{
+			return availMoves.getAvailableMoves(this);
+		}
+		
 		
 		// TODO: this is seriously complicated shit. Leave this alone for now
 		protected boolean validateMove(cell moveTo)
@@ -106,23 +111,21 @@ public class chess extends Activity {
 		
 	}
 	
-	private class pawn extends piece
+	private interface availableMoves
 	{
-		@Override 
-		public boolean move(cell moveTo)
-		{
-			// TODO: handle board edge reached case. Probably make a call to super, 
-			// either causing a re-cast, or just replace self in the cell
-			return true;
-		}
-		
+		public ArrayList<cell>getAvailableMoves(piece piece); 
+	}
+
+	private class pawn implements availableMoves
+	{
 		// only piece whose moves depend on colour
-		@Override
-		public List<cell>getAvailableMoves()
+		public ArrayList<cell>getAvailableMoves(piece piece)
 		{
-			List<cell> retList = new ArrayList<cell>();
-			int currX = location.getX();
-			int currY = location.getY();
+			if(piece.location == deadCell)
+				return null;
+			ArrayList<cell> retList = new ArrayList<cell>();
+			int currX = piece.location.getX();
+			int currY = piece.location.getY();
 			
 			// this could be better implemented with some sort of
 			// direction boolean deciding addition + subtraction, but 
@@ -131,136 +134,296 @@ public class chess extends Activity {
 			
 			// as standard, white is on bottom, black on top
 			// white moves 6 -> 0; black moves 1 -> 7 
-			if(this.colour == objectColour.white)
+			if(piece.colour == objectColour.white)
 			{
-				// directly blocked by piece in front; check diagonal movement
-				if(board[currX][currY-1].piece != null)
-				{
-					// check moving left
-					if(currX > 0 && 
-							board[currX-1][currY-1].piece != null && 
-							board[currX-1][currY-1].piece.colour == objectColour.black)
-					{
-						
-					}
-				}
-				// default location, making 4 available moves, rather than 3
-				if(currY == 6)
-				{
+				// move forward one cell
+				if(board[currX][currY-1].piece == null)
+					retList.add(board[currX][currY-1]);
 					
-					
-					
-				}
-			}
-			if(this.colour == objectColour.black)
-			{
+				// check moving left
+				if(currX > 0 && 
+						board[currX-1][currY-1].piece != null && 
+						board[currX-1][currY-1].piece.colour == objectColour.black)
+					retList.add(board[currX-1][currY-1]);
 				
+				// check moving right
+				if(currX < 7 && 
+						board[currX+1][currY-1].piece != null && 
+						board[currX+1][currY-1].piece.colour == objectColour.black)
+					retList.add(board[currX+1][currY-1]);
+
+				// default location, making 4 available moves, rather than 3
+				if(currY == 6 && board[currX][currY-1].piece == null &&
+						board[currX][currY-2].piece == null)
+					retList.add(board[currX][currY-2]);
+			}
+			if(piece.colour == objectColour.black)
+			{
+				// COPY PASTA! YAAY! : (
+				// move forward one cell
+				if(board[currX][currY+1].piece == null)
+					retList.add(board[currX][currY-1]);
+					
+				// check moving left
+				if(currX > 0 && 
+						board[currX-1][currY+1].piece != null && 
+						board[currX-1][currY+1].piece.colour == objectColour.black)
+					retList.add(board[currX-1][currY+1]);
+				
+				// check moving right
+				if(currX < 7 && 
+						board[currX+1][currY+1].piece != null && 
+						board[currX+1][currY+1].piece.colour == objectColour.black)
+					retList.add(board[currX+1][currY+1]);
+
+				// default location, making 4 available moves, rather than 3
+				if(currY == 6 && board[currX][currY+1].piece == null &&
+						board[currX][currY+2].piece == null)
+					retList.add(board[currX][currY+2]);
 			}
 			return retList;
 		}
-		
-		pawn(objectColour colour, cell location){
-			super(colour, pieceType.pawn, location);
+	}
+
+	private class bishop implements availableMoves
+	{
+		public ArrayList<cell>getAvailableMoves(piece piece)
+		{
+			if(piece.location == deadCell)
+				return null;
+			ArrayList<cell> retList = new ArrayList<cell>();
+			int currX = piece.location.getX();
+			int currY = piece.location.getY();
+			// set i to 1 because there's no point in checking whether
+			// staying in place is a valid move. that's fucking stupid
+			// even with colour checking
+			int i = 1;
+			
+			// check the diagonal until you see a piece.
+			// right, down
+			while(currX + i < 8 && currY + 1 < 8 && board[currX + i][currY + i].piece == null ||
+					board[currX + i][currY + i].piece.colour != piece.colour)
+			{
+				// if the piece is one of the opponent's, it is a valid move
+				if(board[currX + i][currY + i].piece != null && 
+						board[currX + i][currY + i].piece.colour != piece.colour)
+				{
+					retList.add(board[currX + i][currY + i]);
+					break;
+				}
+				retList.add(board[currX+i][currY+i]);
+				i++;
+			}
+			
+			i = 1;
+			// right, up
+			while(currX + i < 8 && currY - 1 > -1 && board[currX + i][currY - i].piece == null ||
+					board[currX + i][currY- i].piece.colour != piece.colour)
+			{
+				if(board[currX + i][currY - i].piece != null && 
+						board[currX + i][currY- i].piece.colour != piece.colour)
+				{
+					retList.add(board[currX + i][currY - i]);
+					break;
+				}
+				retList.add(board[currX+i][currY-i]);
+				i++;
+			}
+			
+			i = 1;
+			// left, down
+			while(currX - i > -1 && currY + 1 < 8 && board[currX - i][currY + i].piece == null || 
+					board[currX - i][currY + i].piece.colour != piece.colour)
+			{
+				if(board[currX - i][currY + i].piece != null && 
+						board[currX - i][currY + i].piece.colour != piece.colour)
+				{
+					retList.add(board[currX - i][currY + i]);
+					break;
+				}
+				retList.add(board[currX-i][currY+i]);
+				i++;
+			}
+			
+			
+			i = 1;
+			// left, up
+			while(currX - i > -1 && currY - 1 > -1 && board[currX - i][currY - i].piece == null ||
+					board[currX - i][currY - i].piece.colour != piece.colour)
+			{
+				if(board[currX - i][currY - i].piece != null && 
+						board[currX - i][currY - i].piece.colour != piece.colour)
+				{
+					retList.add(board[currX - i][currY - i]);
+					break;
+				}
+				retList.add(board[currX-i][currY-i]);
+				i++;
+			}
+			
+			return retList;
 		}
 	}
 
-	private class bishop extends piece
+	private class knight implements availableMoves
 	{
-		@Override 
-		public boolean move(cell moveTo)
+		public ArrayList<cell>getAvailableMoves(piece piece)
 		{
-			return true;
-		}
-		
-		@Override
-		public List<cell>getAvailableMoves()
-		{
-			List<cell> retList = new ArrayList<cell>();
+			if(piece.location == deadCell)
+				return null;
+			ArrayList<cell> retList = new ArrayList<cell>();
+			int currX = piece.location.getX();
+			int currY = piece.location.getY();
+			// the knight has 8 moves, so we'll just explicitly define them
+			// since it's not that much more verbose than the alternateive
+			// and much easier to write.
+			// TODO: think about optimizing this. not a priority at the moment
+			// like, this is a circular pattern, or check the rectangle 2 away,
+			// skipping every other cell
+			
+			if(currX > 1 && currY > 0 && board[currX-2][currY-1].piece == null ||
+					board[currX-2][currY-1].piece.colour != piece.colour)
+				retList.add(board[currX-2][currY-1]);
+			
+			if(currX > 0 && currY > 1 && board[currX-1][currY-2].piece == null ||
+					board[currX-1][currY-2].piece.colour != piece.colour)
+				retList.add(board[currX-1][currY-2]);
+			
+			if(currX < 7 && currY > 1  && board[currX+1][currY-2].piece == null ||
+					board[currX+1][currY-2].piece.colour != piece.colour)
+				retList.add(board[currX+1][currY-2]);
+			
+			if(currX < 6  && currY > 0 && board[currX+2][currY-1].piece == null ||
+					board[currX+2][currY-1].piece.colour != piece.colour)
+				retList.add(board[currX+2][currY-1]);
+			
+			if(currX < 6 && currY < 7 && board[currX+2][currY+1].piece == null ||
+					board[currX+2][currY+1].piece.colour != piece.colour)
+				retList.add(board[currX+2][currY+1]);
+			
+			if(currX < 7 && currY < 6 && board[currX+1][currY+2].piece == null ||
+					board[currX+1][currY+2].piece.colour != piece.colour)
+				retList.add(board[currX+1][currY+2]);
+			
+			if(currX > 0 && currY < 6 && board[currX-1][currY+2].piece == null ||
+					board[currX-1][currY+2].piece.colour != piece.colour)
+				retList.add(board[currX-1][currY+2]);
+			
+			if(currX > 1 && currY < 7 && board[currX-2][currY+1].piece == null ||
+					board[currX-2][currY+1].piece.colour != piece.colour)
+				retList.add(board[currX-2][currY+1]);
+			
 			return retList;
-		}
-		
-		bishop(objectColour colour, cell location){
-			super(colour, pieceType.bishop, location);
 		}
 	}
 
-	private class knight extends piece
+	private class rook implements availableMoves
 	{
-		@Override 
-		public boolean move(cell moveTo)
+		public ArrayList<cell>getAvailableMoves(piece piece)
 		{
-			return true;
-		}
-		
-		@Override
-		public List<cell>getAvailableMoves()
-		{
-			List<cell> retList = new ArrayList<cell>();
+			if(piece.location == deadCell)
+				return null;
+			ArrayList<cell> retList = new ArrayList<cell>();
+			int currX = piece.location.getX();
+			int currY = piece.location.getY();
+			int i = 1;
+			
+			// right
+			while(currX + i < 8 && (board[currX + i][currY].piece == null ||
+					board[currX + i][currY].piece.colour != piece.colour))
+			{
+				if(board[currX + i][currY].piece != null && 
+						board[currX + i][currY].piece.colour != piece.colour)
+				{
+					retList.add(board[currX + i][currY]);
+					break;
+				}
+				retList.add(board[currX+i][currY]);
+				i++;
+			}
+			
+			i = 1;
+			// left
+			while(currX - i > -1 && (board[currX - i][currY].piece == null || 
+					board[currX - i][currY].piece.colour != piece.colour))
+			{
+				if(board[currX - i][currY].piece != null && 
+						board[currX - i][currY].piece.colour != piece.colour)
+				{
+					retList.add(board[currX - i][currY]);
+					break;
+				}
+				retList.add(board[currX-i][currY]);
+				i++;
+			}
+			
+			i = 1;
+			// down
+			while(currY + i < 8 && (board[currX][currY + i].piece == null || 
+					board[currX][currY + i].piece.colour != piece.colour))
+			{
+				if(board[currX][currY + i].piece != null && 
+						board[currX][currY + i].piece.colour != piece.colour)
+				{
+					retList.add(board[currX][currY + i]);
+					break;
+				}
+				retList.add(board[currX][currY+i]);
+				i++;
+			}	
+			
+			i = 1;
+			// up
+			while(currY - i > -1 && (board[currX][currY - i].piece == null || 
+					board[currX][currY - i].piece.colour != piece.colour))
+			{
+				if(board[currX][currY - i].piece != null && 
+						board[currX][currY -i ].piece.colour != piece.colour)
+				{
+					retList.add(board[currX][currY - i]);
+					break;
+				}
+				retList.add(board[currX][currY-i]);
+				i++;
+			}
 			return retList;
-		}
-		
-		knight(objectColour colour, cell location){
-			super(colour, pieceType.knight, location);
 		}
 	}
 
-	private class rook extends piece
+	private class queen implements availableMoves
 	{
-		@Override 
-		public boolean move(cell moveTo)
+		private rook horizontalVerical;
+		private bishop diagonal;
+		public ArrayList<cell>getAvailableMoves(piece piece)
 		{
-			return true;
-		}
-		
-		@Override
-		public List<cell>getAvailableMoves()
-		{
-			List<cell> retList = new ArrayList<cell>();
+			if(piece.location == deadCell)
+				return null;
+			ArrayList<cell> retList = horizontalVerical.getAvailableMoves(piece);
+			ArrayList<cell> moreMoves = diagonal.getAvailableMoves(piece);
+			for(int i = 0; i < moreMoves.size(); i++)
+			{
+				retList.add(moreMoves.get(i));
+			}
 			return retList;
-		}
-		
-		rook(objectColour colour, cell location){
-			super(colour, pieceType.rook, location);
 		}
 	}
-
-	private class queen extends piece
+	
+	private class king implements availableMoves
 	{
-		@Override 
-		public boolean move(cell moveTo)
+		public ArrayList<cell>getAvailableMoves(piece piece)
 		{
-			return true;
-		}
-		
-		@Override
-		public List<cell>getAvailableMoves()
-		{
-			List<cell> retList = new ArrayList<cell>();
+			if(piece.location == deadCell)
+				return null;
+			ArrayList<cell> retList = new ArrayList<cell>();
+			int currX = piece.location.getX();
+			int currY = piece.location.getY();
+			// if the king moves and there is a check, regardless of the colour
+			// it is an invalid move.
+			// TODO:implement king moves in a way that won't cause infinite loops
+			// for example: checkForCheck doesn't look at the king. That would do it
+			
+			
 			return retList;
-		}
-		
-		queen(objectColour colour, cell location){
-			super(colour, pieceType.queen, location);
-		}
-	}
-
-	private class king extends piece
-	{
-		@Override 
-		public boolean move(cell moveTo)
-		{
-			return true;
-		}
-		
-		@Override
-		public List<cell>getAvailableMoves()
-		{
-			List<cell> retList = new ArrayList<cell>();
-			return retList;
-		}
-		
-		king(objectColour colour, cell location){
-			super(colour, pieceType.king, location);
 		}
 	}
 	
@@ -279,7 +442,10 @@ public class chess extends Activity {
 		return gameState.allClear;
 	}
 	
-	private gameState checkForMate() 
+	private gameState checkForMate()
+	{
+		return gameState.allClear;
+	}
 	
 	// .ctor
 	chess()
