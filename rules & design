@@ -1,0 +1,83 @@
+typedef struct {
+    short x, y;
+    void* current_piece; // do we need this, or will this creeate a clusterfuck of dangling pointers?
+}cell;
+
+typedef enum {black, white} colour;
+
+typedef struct{
+    typedef enum {pawn, bishop, knight, rook, queen, king} piece_type;
+    typedef enum {alive, dead} status; // dead pieces should also probably have cell location (-1, -1)
+    
+    piece_type type;
+    status state;
+    colour piece_colour;
+    // movememnt: should it be dependent on the enum, or should it be a derived class function?
+    //   well, derived class will have trouble with pawns queening
+    
+    // movement: enum based logic. Switch, i guess. HA! FUNCTION POINTER! booya. hm... self? fucking C. alright
+    // move defines validity. 0 = success, -1 = invalid_move
+    // should we have more verbose invalid move errorcodes for off board moves or friendy fire?
+    int (*move)(void* this, cell move_to); 
+    // restrictions: restrictions can be defined in move. MOVE VALIDITY CHECKED ON CLIENT SIDE
+    // move will also check for check... no. 
+    // CHECK/MATE CONDITIONS
+    // would it be easier to check pieces affected by the move, or would it be easier to re'scan the board?
+}piece;
+
+typedef struct{
+    piece pieces[16];
+    colour player_colour;
+}player;
+
+typedef struct{
+    cell board[8][8];
+    player black, white;
+    colour whose_turn;
+    // check_for_mate returns 0 = nothing, 1 = check, 2 = mate... whose check/mate?
+    // 0x0000 = nothing 0x101 = black in check 0x111 black mate, 0x001 white check 0x011 white mate
+    int (*check_for_mate)(void* this);
+}game;
+
+
+
+// JAVA implementation:
+class chess.cell
+{}
+
+// when a pawn reaches the last cell on the board, it will just get reassigned to a new piece with the same locaition
+// no casting is required and the old piece will be garbage collected. 
+class chess.piece
+{
+    cell location;
+    bool alive;
+    // to be overrridden 
+    bool move(cell target);
+}
+
+class chess.game
+
+/*
+    what do we need for state record? 
+    board and turn, right?
+    that sounds right
+    
+    ok. so if we say that we will send the board as a text, we'd need 64 characters for the board and 1 for the player state
+    do wee need player state? i don't think so. BUT: must store current state locally to avoid multiple moves
+    also: need to make sure that only one piece moves at a time. it has to be legal.
+    
+    text seems bad. look into direct file sends that don't require a server or text. text is bad because of text caps.
+    
+
+    if we have a database, what will we need
+    users: do we give a shit about users? anon sessions will be just fine, if not better. 
+    sessionID, state of session(board, whose turn), users (again. do we care? oh. yes. we need to know who's black and who's white. ok)
+
+
+*/
+
+
+
+
+
+
