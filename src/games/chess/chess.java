@@ -6,6 +6,7 @@ import android.os.Bundle;
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO: move the logic into a separate class
 public class chess extends Activity {
 
 	// TYPES AND CLASSES
@@ -204,7 +205,7 @@ public class chess extends Activity {
 			tempBoard[moveTo.x][moveTo.y].setPiece(this);
 			this.location = tempBoard[moveTo.x][moveTo.y];
 			tempBoard[oldX][oldY] = null;
-			gameState tryState = checkForCheck(tempBoard);
+			gameState tryState = checkForCheck(tempBoard, this.colour);
 			
 			// see if move is valid
 			// validity of the move is determined by whether the move puts
@@ -639,11 +640,11 @@ public class chess extends Activity {
 	// METHODS
 	
 	// checks for check on proposed board.
-	private gameState checkForCheck(cell board[][])
+	private gameState checkForCheck(cell board[][], objectColour whoseCheck)
 	{
 		piece own[];
 		piece opponent[];
-		if(turn == objectColour.white)
+		if(whoseCheck == objectColour.white)
 		{
 			own = white.getPieces();
 			opponent = black.getPieces();
@@ -660,7 +661,7 @@ public class chess extends Activity {
 		{
 			if(opponent[i].getAvailableMoves().contains(own[16].getLocation()))
 			{
-				if(turn == objectColour.white)
+				if(whoseCheck == objectColour.white)
 					return gameState.whiteCheck;
 				else
 					return gameState.blackCheck;
@@ -669,21 +670,28 @@ public class chess extends Activity {
 		return gameState.allClear;
 	}
 	
-	// checks for mate on the board as it exists 
+	// checks for mate on the board as it exists
+	// TODO: finish this. Not important at the moment. 
 	private gameState checkForMate()
 	{
 		// TODO: check for stalemate here
 		// mate = check & no valid moves as defined above(somewhere)
 		// stalemate = no available moves and no check
+		if(checkForCheck(board, objectColour.white) == gameState.whiteCheck)
+			return gameState.whiteCheck;
+		if(checkForCheck(board, objectColour.black) == gameState.blackCheck)
+			return gameState.blackCheck;
 		return gameState.allClear;
 	}
 	
-	void move()
+	// TODO: maybe move this into a game class
+	void move() throws Exception
 	{
 		player currentPlayer = turn == objectColour.white ? white : black;
 		boolean success = false;
 		while(!success)
 		{
+			// TODO: write UI interaction
 			cell moveTo = UIboard.getTargetCell();
 			piece piece = UIboard.getPiece();
 			success = currentPlayer.move(piece, moveTo);
@@ -691,6 +699,7 @@ public class chess extends Activity {
 		
 	}
 	
+	// TODO: finish this function. 
 	void populateBoard(cell[][] board)
 	{
 		// create player piece arrays
